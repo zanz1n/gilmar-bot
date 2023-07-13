@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/zanz1n/gilmar-bot/logger"
 )
@@ -61,6 +63,8 @@ func onMessage(
 		if phrase.AuthorID != nil {
 			content += "\n- <@" + *phrase.AuthorID + ">"
 		}
+
+		content = strings.ReplaceAll(content, "{USER}", "<@"+*phrase.AuthorID+">")
 
 		_, err := s.ChannelMessageSendReply(m.ChannelID, content, m.Reference())
 

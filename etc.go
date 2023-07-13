@@ -8,9 +8,9 @@ import (
 )
 
 type Phrase struct {
-	ID       string  `json:"i"`
-	AuthorID *string `json:"a"`
-	Content  string  `json:"c"`
+	ID       string  `bson:"i"`
+	AuthorID *string `bson:"a"`
+	Content  string  `bson:"c"`
 }
 
 func SliceIncludes[T comparable](s []T, item T) bool {

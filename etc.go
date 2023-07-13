@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/bwmarrin/discordgo"
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/zanz1n/gilmar-bot/logger"
 )
 
@@ -106,4 +107,12 @@ func SetStatus(s *discordgo.Session, status StatusType) {
 			},
 		},
 	})
+}
+
+func nanoid(l int) string {
+	id, err := gonanoid.New(l)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	return id
 }

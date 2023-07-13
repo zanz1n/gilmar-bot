@@ -1,0 +1,6 @@
+dist/
+data/
+*.out
+*.bin
+*.log
+.env

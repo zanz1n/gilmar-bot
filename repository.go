@@ -88,6 +88,12 @@ func (r *Repository[T]) NotOverwriteSet(key string, value T) bool {
 	return !ok
 }
 
+func (r *Repository[T]) Remove(key string) {
+	r.dataMu.Lock()
+	defer r.dataMu.Unlock()
+	delete(r.data, key)
+}
+
 // It's heavily recommended to run in another goroutine
 func (r *Repository[T]) Save() error {
 	file, err := os.OpenFile(r.fileDir, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)

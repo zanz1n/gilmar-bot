@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
-	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
 var phraseCommandData = &discordgo.ApplicationCommand{
@@ -30,7 +29,11 @@ var phraseCommandData = &discordgo.ApplicationCommand{
 func handlePhrase(pr *Repository[[]Phrase]) func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if i.Member == nil {
-			return nil
+			return fmt.Errorf(
+				"member is nil, command '%s', interaction id '%s'",
+				i.ApplicationCommandData().Name,
+				i.ID,
+			)
 		}
 
 		if !HasPerm(i.Member.Permissions, discordgo.PermissionAdministrator) {
@@ -59,16 +62,14 @@ func handlePhrase(pr *Repository[[]Phrase]) func(s *discordgo.Session, i *discor
 
 			phrase := phraseOpt.StringValue()
 
-			id, err := gonanoid.New(12)
+			id := nanoid(12)
 
-			if err != nil {
-				return err
-			}
 			userId := i.Member.User.ID
 
 			pr.NotOverwriteSet(i.GuildID, []Phrase{})
 
 			r := false
+			var err error = nil
 
 			pr.Transaction(i.GuildID, func(t []Phrase) []Phrase {
 				for _, v := range t {

@@ -69,7 +69,7 @@ func (ch *CommandHandler) Handle(s *discordgo.Session, i *discordgo.InteractionC
 
 	if err := cmd.Handler(s, i); err != nil {
 		logger.Error(
-			"Exception caught when executing a command %s, took %v - %s",
+			"Exception caught when executing a command %s, took %v: %s",
 			cmd.Data.Name,
 			time.Since(startTime),
 			err.Error(),

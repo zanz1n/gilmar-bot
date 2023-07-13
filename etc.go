@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/zanz1n/gilmar-bot/logger"
 )
 
 type Phrase struct {
@@ -79,4 +80,30 @@ func randp(p uint8) bool {
 	} else {
 		return true
 	}
+}
+
+func SetStatus(s *discordgo.Session, status StatusType) {
+	str, name := "online", "/help"
+
+	if status == StatusTypeIdle {
+		str, name = "online", "/help"
+	} else if status == StatusTypeStarting {
+		str, name = "dnd", "Iniciando ..."
+	} else if status == StatusTypeStopping {
+		str, name = "dnd", "Desligando ..."
+	} else {
+		logger.Error("Failed to parse StatusType enumeration. Invalid")
+	}
+
+	s.UpdateStatusComplex(discordgo.UpdateStatusData{
+		IdleSince: nil,
+		Status:    str,
+		AFK:       false,
+		Activities: []*discordgo.Activity{
+			{
+				Name: name,
+				Type: discordgo.ActivityTypeGame,
+			},
+		},
+	})
 }

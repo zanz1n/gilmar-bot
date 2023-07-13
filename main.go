@@ -5,9 +5,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/zanz1n/gilmar-bot/logger"
+)
+
+type StatusType uint8
+
+const (
+	StatusTypeStarting StatusType = 96
+	StatusTypeStopping StatusType = 73
+	StatusTypeIdle     StatusType = 24
 )
 
 var (
@@ -31,6 +40,8 @@ func onReady(manager *CommandHandler) func(s *discordgo.Session, r *discordgo.Re
 		)
 
 		manager.PostCommands(s)
+
+		SetStatus(s, StatusTypeIdle)
 	}
 }
 
@@ -64,7 +75,11 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	SetStatus(s, StatusTypeStarting)
+
 	<-endCh
+	SetStatus(s, StatusTypeStopping)
+	time.Sleep(200 * time.Millisecond)
 	logger.Info("Stopping...")
 
 	s.Close()

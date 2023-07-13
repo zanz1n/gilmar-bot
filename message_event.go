@@ -5,10 +5,11 @@ import (
 	"github.com/zanz1n/gilmar-bot/logger"
 )
 
-func onMessage(fsr *Repository[[]Phrase], prr *Repository[uint8]) func(s *discordgo.Session, m *discordgo.MessageCreate) {
-	defaultPhraseRepo := NewRepository[Phrase](*dataDir + "/default-phrases.obj")
-	go defaultPhraseRepo.BackgroundSave()
-
+func onMessage(
+	fsr *Repository[[]Phrase],
+	prr *Repository[uint8],
+	defaultPhraseRepo *Repository[Phrase],
+) func(s *discordgo.Session, m *discordgo.MessageCreate) {
 	return func(s *discordgo.Session, m *discordgo.MessageCreate) {
 		gfss := defaultPhraseRepo.GetValues()
 		if len(gfss) == 0 || m.Author.Bot {

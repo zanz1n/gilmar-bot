@@ -60,12 +60,15 @@ func main() {
 	percentRepo := NewRepository[uint8](*dataDir + "/percentage.obj")
 	go percentRepo.BackgroundSave()
 
+	defaultPhraseRepo := NewRepository[Phrase](*dataDir + "/default-phrases.obj")
+	go defaultPhraseRepo.BackgroundSave()
+
 	manager.Add(PingCommand())
 	manager.Add(PhraseCommand(phrasesRepo))
 
 	manager.AutoHandle(s)
 	s.AddHandler(onReady(manager))
-	s.AddHandler(onMessage(phrasesRepo, percentRepo))
+	s.AddHandler(onMessage(phrasesRepo, percentRepo, defaultPhraseRepo))
 
 	endCh := make(chan os.Signal, 1)
 
@@ -86,4 +89,5 @@ func main() {
 
 	phrasesRepo.Save()
 	percentRepo.Save()
+	defaultPhraseRepo.Save()
 }

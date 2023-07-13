@@ -6,9 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/goccy/go-json"
 	"github.com/zanz1n/gilmar-bot/logger"
+	"go.mongodb.org/mongo-driver/bson"
 )
+
+var bsonEmpty = []byte{5, 0, 0, 0, 0}
 
 type Repository[T any] struct {
 	data    map[string]T
@@ -26,7 +28,7 @@ func NewRepository[T any](fileDir string) *Repository[T] {
 			logger.Fatal(err)
 		}
 
-		file.WriteString("{}")
+		file.Write(bsonEmpty)
 		file.Close()
 
 		file, err = os.Open(fileDir)
@@ -46,7 +48,7 @@ func NewRepository[T any](fileDir string) *Repository[T] {
 
 	data := make(map[string]T)
 
-	if err = json.Unmarshal(buf, &data); err != nil {
+	if err = bson.Unmarshal(buf, &data); err != nil {
 		logger.Fatal(err)
 	}
 
@@ -110,7 +112,7 @@ func (r *Repository[T]) Save() error {
 	r.dataMu.Lock()
 	defer r.dataMu.Unlock()
 
-	buf, err := json.Marshal(r.data)
+	buf, err := bson.Marshal(r.data)
 
 	if err != nil {
 		logger.Error("Failed to encode cached data, '%s'", err.Error())

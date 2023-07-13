@@ -65,6 +65,7 @@ func main() {
 
 	manager.Add(PingCommand())
 	manager.Add(PhraseCommand(phrasesRepo))
+	manager.Add(PercentageCommand(percentRepo))
 
 	manager.AutoHandle(s)
 	s.AddHandler(onReady(manager))

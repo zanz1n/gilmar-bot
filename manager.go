@@ -20,14 +20,18 @@ type Command struct {
 }
 
 type CommandHandler struct {
-	cmds   map[string]*Command
-	cmdsMu sync.RWMutex
+	cmds          map[string]*Command
+	cmdsMu        sync.RWMutex
+	buttonHandler func(s *discordgo.Session, i *discordgo.InteractionCreate) error
 }
 
 func NewCommandHandler() *CommandHandler {
 	return &CommandHandler{
 		cmds:   make(map[string]*Command),
 		cmdsMu: sync.RWMutex{},
+		buttonHandler: func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+			return nil
+		},
 	}
 }
 
@@ -43,8 +47,9 @@ func (ch *CommandHandler) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	ch.cmdsMu.RLock()
 
 	var (
-		cmd *Command
-		ok  bool
+		cmd  *Command
+		ok   bool
+		btnH bool = false
 	)
 	if i.Type == discordgo.InteractionApplicationCommand ||
 		i.Type == discordgo.InteractionApplicationCommandAutocomplete {
@@ -58,18 +63,32 @@ func (ch *CommandHandler) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	} else if i.Type == discordgo.InteractionMessageComponent {
 		if cmd, ok = ch.cmds[i.MessageComponentData().CustomID]; ok {
 			if !cmd.Accepts.Button {
-				return
+				btnH = true
 			}
 		} else {
-			return
+			btnH = true
+		}
+	}
+	ch.cmdsMu.RUnlock()
+
+	if btnH {
+		if err := ch.buttonHandler(s, i); err != nil {
+			logger.Error(
+				"Exception caught while handling message component, took %v: %s",
+				time.Since(startTime),
+				err.Error(),
+			)
+		} else {
+			logger.Info(
+				"Message component action handled, took %v",
+				time.Since(startTime),
+			)
 		}
 	}
 
-	ch.cmdsMu.RUnlock()
-
 	if err := cmd.Handler(s, i); err != nil {
 		logger.Error(
-			"Exception caught when executing a command %s, took %v: %s",
+			"Exception caught while executing a command %s, took %v: %s",
 			cmd.Data.Name,
 			time.Since(startTime),
 			err.Error(),

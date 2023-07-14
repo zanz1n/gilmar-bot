@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -13,7 +14,7 @@ var phraseCommandData = &discordgo.ApplicationCommand{
 		{
 			Name:        "add",
 			Type:        discordgo.ApplicationCommandOptionSubCommand,
-			Description: "Adicione uma frase customizada que só funciona no seu servidor",
+			Description: "Adicione uma frase customizada que só funciona nesse servidor",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Name:        "phrase",
@@ -22,6 +23,12 @@ var phraseCommandData = &discordgo.ApplicationCommand{
 					Required:    true,
 				},
 			},
+		},
+		{
+			Name:        "remove",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Description: "Remova uma frase customizada",
+			Options:     []*discordgo.ApplicationCommandOption{},
 		},
 	},
 }
@@ -54,49 +61,104 @@ func handlePhrase(pr *Repository[[]Phrase]) func(s *discordgo.Session, i *discor
 		}
 
 		if subCommand.Name == "add" {
-			phraseOpt := GetOption(subCommand.Options, "phrase")
-
-			if phraseOpt == nil {
-				return fmt.Errorf("option 'add' not provided, command '%s'", data.Name)
-			}
-
-			phrase := phraseOpt.StringValue()
-
-			id := nanoid(12)
-
-			userId := i.Member.User.ID
-
-			pr.NotOverwriteSet(i.GuildID, []Phrase{})
-
-			r := false
-			var err error = nil
-
-			pr.Transaction(i.GuildID, func(t []Phrase) []Phrase {
-				for _, v := range t {
-					if v.Content == phrase {
-						r = true
-						err = s.InteractionRespond(i.Interaction,
-							BasicResponse("Essa frase já havia sido adicionada"),
-						)
-						return t
-					}
-				}
-				return append(t, Phrase{
-					ID:       id,
-					AuthorID: &userId,
-					Content:  phrase,
-				})
-			})
-
-			if r {
-				return err
-			}
-
-			return s.InteractionRespond(i.Interaction, BasicResponse("Frase adicionada!"))
+			return handlePhraseAdd(pr, s, i)
+		} else if subCommand.Name == "remove" {
+			return handlePhraseRemove(pr, s, i)
 		}
 
 		return nil
 	}
+}
+
+func handlePhraseAdd(pr *Repository[[]Phrase], s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	data := i.ApplicationCommandData()
+
+	subCommand := GetSubCommand(data.Options)
+
+	phraseOpt := GetOption(subCommand.Options, "phrase")
+
+	if phraseOpt == nil {
+		return fmt.Errorf("option 'add' not provided, command '%s'", data.Name)
+	}
+
+	phrase := phraseOpt.StringValue()
+
+	id := nanoid(12)
+
+	userId := i.Member.User.ID
+
+	pr.NotOverwriteSet(i.GuildID, []Phrase{})
+
+	r := false
+	var err error = nil
+
+	pr.Transaction(i.GuildID, func(t []Phrase) []Phrase {
+		for _, v := range t {
+			if v.Content == phrase {
+				r = true
+				err = s.InteractionRespond(i.Interaction,
+					BasicResponse("Essa frase já havia sido adicionada"),
+				)
+				return t
+			}
+		}
+		return append(t, Phrase{
+			ID:       id,
+			AuthorID: &userId,
+			Content:  phrase,
+		})
+	})
+
+	if r {
+		return err
+	}
+
+	return s.InteractionRespond(i.Interaction, BasicResponse("Frase adicionada!"))
+}
+
+func handlePhraseRemove(pr *Repository[[]Phrase], s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	phrases, ok := pr.Get(i.GuildID)
+
+	if !ok || len(phrases) == 0 {
+		return s.InteractionRespond(i.Interaction,
+			BasicResponse(
+				"Não há nenhuma frase registrada nesse servidor, <@%s>",
+				i.Member.User.ID,
+			),
+		)
+	}
+
+	text := ""
+
+	buttons := []discordgo.MessageComponent{}
+
+	for k, v := range phrases {
+		ks := strconv.Itoa(k)
+		text += "**" + ks + "** - " + v.Content + "\n"
+
+		buttons = append(buttons, &discordgo.Button{
+			Style:    discordgo.DangerButton,
+			Label:    ks,
+			Emoji:    discordgo.ComponentEmoji{Name: "✖️"},
+			CustomID: "phrase/" + v.ID,
+		})
+	}
+
+	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Embeds: []*discordgo.MessageEmbed{{
+				Title:       "Frases",
+				Description: text,
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: "Requisitado por " + i.Member.User.Username,
+				},
+			}},
+			Components: []discordgo.MessageComponent{
+				discordgo.ActionsRow{Components: buttons},
+			},
+		},
+	})
 }
 
 func PhraseCommand(pr *Repository[[]Phrase]) Command {

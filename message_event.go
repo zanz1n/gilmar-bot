@@ -64,7 +64,7 @@ func onMessage(
 			content += "\n- <@" + *phrase.AuthorID + ">"
 		}
 
-		content = strings.ReplaceAll(content, "{USER}", "<@"+*phrase.AuthorID+">")
+		content = strings.ReplaceAll(content, "{USER}", "<@"+m.Author.ID+">")
 
 		_, err := s.ChannelMessageSendReply(m.ChannelID, content, m.Reference())
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -33,7 +34,9 @@ var phraseCommandData = &discordgo.ApplicationCommand{
 	},
 }
 
-func handlePhrase(pr *Repository[[]Phrase]) func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+func handlePhrase(
+	pr *Repository[[]Phrase],
+) func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if i.Member == nil {
 			return fmt.Errorf(
@@ -70,7 +73,11 @@ func handlePhrase(pr *Repository[[]Phrase]) func(s *discordgo.Session, i *discor
 	}
 }
 
-func handlePhraseAdd(pr *Repository[[]Phrase], s *discordgo.Session, i *discordgo.InteractionCreate) error {
+func handlePhraseAdd(
+	pr *Repository[[]Phrase],
+	s *discordgo.Session,
+	i *discordgo.InteractionCreate,
+) error {
 	data := i.ApplicationCommandData()
 
 	subCommand := GetSubCommand(data.Options)
@@ -116,7 +123,11 @@ func handlePhraseAdd(pr *Repository[[]Phrase], s *discordgo.Session, i *discordg
 	return s.InteractionRespond(i.Interaction, BasicResponse("Frase adicionada!"))
 }
 
-func handlePhraseRemove(pr *Repository[[]Phrase], s *discordgo.Session, i *discordgo.InteractionCreate) error {
+func handlePhraseRemove(
+	pr *Repository[[]Phrase],
+	s *discordgo.Session,
+	i *discordgo.InteractionCreate,
+) error {
 	phrases, ok := pr.Get(i.GuildID)
 
 	if !ok || len(phrases) == 0 {
@@ -130,18 +141,41 @@ func handlePhraseRemove(pr *Repository[[]Phrase], s *discordgo.Session, i *disco
 
 	text := ""
 
-	buttons := []discordgo.MessageComponent{}
+	rows := []discordgo.ActionsRow{}
+
+	ri, ai := 0, 0
 
 	for k, v := range phrases {
+		if ri == 5 {
+			ri = 0
+			ai++
+		}
+		if ri == 0 {
+			rows = append(rows, discordgo.ActionsRow{})
+		}
+
 		ks := strconv.Itoa(k)
 		text += "**" + ks + "** - " + v.Content + "\n"
 
-		buttons = append(buttons, &discordgo.Button{
-			Style:    discordgo.DangerButton,
-			Label:    ks,
-			Emoji:    discordgo.ComponentEmoji{Name: "✖️"},
-			CustomID: "phrase/" + v.ID,
+		timeStamp := time.Now().UnixMilli()
+
+		rows[ai].Components = append(rows[ai].Components, &discordgo.Button{
+			Style: discordgo.DangerButton,
+			Label: ks,
+			Emoji: discordgo.ComponentEmoji{Name: "✖️"},
+			CustomID: "phrase-delete/" +
+				v.ID + "/" +
+				i.Member.User.ID + "/" +
+				strconv.FormatInt(timeStamp, 10),
 		})
+
+		ri++
+	}
+
+	components := make([]discordgo.MessageComponent, len(rows))
+
+	for i, v := range rows {
+		components[i] = v
 	}
 
 	return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -151,12 +185,11 @@ func handlePhraseRemove(pr *Repository[[]Phrase], s *discordgo.Session, i *disco
 				Title:       "Frases",
 				Description: text,
 				Footer: &discordgo.MessageEmbedFooter{
-					Text: "Requisitado por " + i.Member.User.Username,
+					Text:    "Requisitado por " + i.Member.User.Username,
+					IconURL: i.Member.AvatarURL("128"),
 				},
 			}},
-			Components: []discordgo.MessageComponent{
-				discordgo.ActionsRow{Components: buttons},
-			},
+			Components: components,
 		},
 	})
 }

@@ -64,6 +64,7 @@ func main() {
 	go defaultPhraseRepo.BackgroundSave()
 
 	manager.Add(PingCommand())
+	manager.ButtonHandler(handleActionRow(phrasesRepo))
 	manager.Add(PhraseCommand(phrasesRepo))
 	manager.Add(PercentageCommand(percentRepo))
 

@@ -84,6 +84,8 @@ func (ch *CommandHandler) Handle(s *discordgo.Session, i *discordgo.InteractionC
 				time.Since(startTime),
 			)
 		}
+
+		return
 	}
 
 	if err := cmd.Handler(s, i); err != nil {

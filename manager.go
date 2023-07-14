@@ -108,6 +108,10 @@ func (ch *CommandHandler) AutoHandle(s *discordgo.Session) {
 	})
 }
 
+func (ch *CommandHandler) ButtonHandler(h func(s *discordgo.Session, i *discordgo.InteractionCreate) error) {
+	ch.buttonHandler = h
+}
+
 func (ch *CommandHandler) PostCommands(s *discordgo.Session) {
 	arr := []*discordgo.ApplicationCommand{}
 

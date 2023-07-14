@@ -114,15 +114,24 @@ func (ch *CommandHandler) ButtonHandler(h func(s *discordgo.Session, i *discordg
 	ch.buttonHandler = h
 }
 
-func (ch *CommandHandler) PostCommands(s *discordgo.Session) {
+func (ch *CommandHandler) GetData(accepts CommandAccept) []*discordgo.ApplicationCommand {
 	arr := []*discordgo.ApplicationCommand{}
 
+	ch.cmdsMu.RLock()
 	for _, cmd := range ch.cmds {
-		if cmd.Accepts.Slash {
-			d := *cmd.Data
-			arr = append(arr, &d)
+		if cmd.Accepts.Button && accepts.Button {
+			arr = append(arr, cmd.Data)
+		} else if cmd.Accepts.Slash && accepts.Slash {
+			arr = append(arr, cmd.Data)
 		}
 	}
+	ch.cmdsMu.RUnlock()
+
+	return arr
+}
+
+func (ch *CommandHandler) PostCommands(s *discordgo.Session) {
+	arr := ch.GetData(CommandAccept{Slash: true, Button: false})
 
 	created, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, "", arr)
 

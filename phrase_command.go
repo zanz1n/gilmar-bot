@@ -31,6 +31,25 @@ var phraseCommandData = &discordgo.ApplicationCommand{
 			Description: "Remova uma frase customizada",
 			Options:     []*discordgo.ApplicationCommandOption{},
 		},
+		{
+			Name:        "remove-id",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Description: "Remova uma frase customizada por seu id",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "id",
+					Type:        discordgo.ApplicationCommandOptionString,
+					Description: "O id da frase customizada",
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "list",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Description: "Liste as frases customizadas do servidor",
+			Options:     []*discordgo.ApplicationCommandOption{},
+		},
 	},
 }
 
@@ -46,6 +65,18 @@ func handlePhrase(
 			)
 		}
 
+		data := i.ApplicationCommandData()
+
+		subCommand := GetSubCommand(data.Options)
+
+		if subCommand == nil {
+			return fmt.Errorf("no subcommands provided, command '%s'", data.Name)
+		}
+
+		if subCommand.Name == "list" {
+			return handlePhraseList(pr, s, i)
+		}
+
 		if !HasPerm(i.Member.Permissions, discordgo.PermissionAdministrator) {
 			s.InteractionRespond(i.Interaction,
 				BasicResponse(
@@ -55,21 +86,109 @@ func handlePhrase(
 			)
 		}
 
-		data := i.ApplicationCommandData()
-
-		subCommand := GetSubCommand(data.Options)
-
-		if subCommand == nil {
-			return fmt.Errorf("no subcommands provided, command '%s'", data.Name)
-		}
-
 		if subCommand.Name == "add" {
 			return handlePhraseAdd(pr, s, i)
 		} else if subCommand.Name == "remove" {
 			return handlePhraseRemove(pr, s, i)
+		} else if subCommand.Name == "remove-id" {
+			return handlePhraseRemoveId(pr, s, i)
 		}
 
 		return nil
+	}
+}
+
+func handlePhraseList(
+	pr *Repository[[]Phrase],
+	s *discordgo.Session,
+	i *discordgo.InteractionCreate,
+) error {
+	phrases, ok := pr.Get(i.GuildID)
+
+	if !ok {
+		return s.InteractionRespond(
+			i.Interaction,
+			BasicResponse("O servidor não possui nenhuma frase no momento"),
+		)
+	}
+
+	text := ""
+
+	fields := make([]*discordgo.MessageEmbedField, len(phrases))
+
+	for i, phrase := range phrases {
+		is := strconv.Itoa(i)
+
+		fields[i] = &discordgo.MessageEmbedField{
+			Name:   is + " - id: '" + phrase.ID + "'",
+			Value:  phrase.Content,
+			Inline: false,
+		}
+	}
+
+	return s.InteractionRespond(
+		i.Interaction,
+		&discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: []*discordgo.MessageEmbed{
+					{
+						Type:        discordgo.EmbedTypeArticle,
+						Title:       "Frases",
+						Fields:      fields,
+						Description: text,
+						Footer: &discordgo.MessageEmbedFooter{
+							Text:    "Requisitado por " + i.Member.User.Username,
+							IconURL: i.Member.AvatarURL("128"),
+						},
+					},
+				},
+			},
+		},
+	)
+}
+
+func handlePhraseRemoveId(
+	pr *Repository[[]Phrase],
+	s *discordgo.Session,
+	i *discordgo.InteractionCreate,
+) error {
+	data := i.ApplicationCommandData()
+
+	subCommand := GetSubCommand(data.Options)
+
+	idOpt := GetOption(subCommand.Options, "id")
+
+	if idOpt == nil {
+		return fmt.Errorf("option 'amount' not provided, command '%s'", data.Name)
+	}
+
+	id := idOpt.StringValue()
+
+	changed := false
+	serverHasPhrases := pr.Transaction(i.GuildID, func(t []Phrase) []Phrase {
+		for k, phrase := range t {
+			if phrase.ID == id {
+				changed = true
+				return append(t[:k], t[k+1:]...)
+			}
+		}
+
+		return t
+	})
+
+	if !serverHasPhrases {
+		return s.InteractionRespond(i.Interaction, BasicEphemeralResponse(
+			"O servidor não possui nenhuma frase no momento",
+		))
+	} else if !changed {
+		return s.InteractionRespond(i.Interaction, BasicEphemeralResponse(
+			"Essa frase já foi excluída por um outro usuário",
+		))
+	} else {
+		return s.InteractionRespond(i.Interaction, BasicEphemeralResponse(
+			"Frase exluída com sucesso",
+		))
 	}
 }
 
@@ -136,6 +255,13 @@ func handlePhraseRemove(
 				"Não há nenhuma frase registrada nesse servidor, <@%s>",
 				i.Member.User.ID,
 			),
+		)
+	}
+
+	if len(phrases) > 20 {
+		return s.InteractionRespond(i.Interaction,
+			BasicResponse("Há mais de 20 frases adicionadas ao servidor, use "+
+				"'/custom list' e depois '/custom remove-id <id da frase>'"),
 		)
 	}
 

@@ -9,19 +9,51 @@ var helpCommandData = &discordgo.ApplicationCommand{
 
 const helpEmbedDescription = "Isso aí machão!"
 
+func cmdsIntoFields(cmds []*discordgo.ApplicationCommand) []*discordgo.MessageEmbedField {
+	fields := []*discordgo.MessageEmbedField{}
+
+	for _, cmd := range cmds {
+		isRoot := true
+
+		for _, opt := range cmd.Options {
+			if opt.Type == discordgo.ApplicationCommandOptionSubCommand {
+				isRoot = false
+
+				fields = append(fields, &discordgo.MessageEmbedField{
+					Name:   cmd.Name + " " + opt.Name,
+					Value:  opt.Description,
+					Inline: true,
+				})
+			} else if opt.Type == discordgo.ApplicationCommandOptionSubCommandGroup {
+				isRoot = false
+
+				for _, gOpt := range opt.Options {
+					fields = append(fields, &discordgo.MessageEmbedField{
+						Name:   cmd.Name + " " + opt.Name + " " + gOpt.Name,
+						Value:  gOpt.Description,
+						Inline: true,
+					})
+				}
+			}
+		}
+
+		if isRoot {
+			fields = append(fields, &discordgo.MessageEmbedField{
+				Name:   cmd.Name,
+				Value:  cmd.Description,
+				Inline: true,
+			})
+		}
+	}
+
+	return fields
+}
+
 func handleHelp(cm *CommandHandler) func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		cmds := cm.GetData(CommandAccept{Slash: true, Button: false})
 
-		fields := make([]*discordgo.MessageEmbedField, len(cmds))
-
-		for i, cmd := range cmds {
-			fields[i] = &discordgo.MessageEmbedField{
-				Name:   cmd.Name,
-				Value:  cmd.Description,
-				Inline: true,
-			}
-		}
+		fields := cmdsIntoFields(cmds)
 
 		embed := discordgo.MessageEmbed{
 			Type:        discordgo.EmbedTypeArticle,

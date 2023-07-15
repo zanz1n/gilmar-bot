@@ -67,6 +67,7 @@ func main() {
 	manager.ButtonHandler(handleActionRow(phrasesRepo))
 	manager.Add(PhraseCommand(phrasesRepo))
 	manager.Add(PercentageCommand(percentRepo))
+	manager.Add(HelpCommand(manager))
 
 	manager.AutoHandle(s)
 	s.AddHandler(onReady(manager))
